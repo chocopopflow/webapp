@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChocoPop TV · TNT Sports Chile</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080c12;
+      --surface:   #0d1320;
+      --border:    #1a2540;
+      --accent:    #00e5ff;
+      --accent2:   #ff3d71;
+      --glow:      rgba(0,229,255,0.18);
+      --text:      #e0eaf5;
+      --muted:     #4a6080;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.08) 3px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Ambient corner glow */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,229,255,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 0% 100%, rgba(0,60,120,0.12) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      gap: 18px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      letter-spacing: 0.12em;
+    }
+
+    .header .logo {
+      height: 44px;
+      width: auto;
+      display: block;
+      filter: drop-shadow(0 0 8px rgba(255,200,0,0.4));
+    }
+
+    .header .channel-name {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .header .channel-name .sub {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: clamp(10px, 1.6vw, 13px);
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .header .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent2);
+      box-shadow: 0 0 10px var(--accent2), 0 0 20px var(--accent2);
+      animation: blink 1.4s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    .header h1 {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(13px, 2.2vw, 18px);
+      font-weight: 700;
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(0,229,255,0.5);
+      text-transform: uppercase;
+    }
+
+    .header .badge {
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 900;
+      color: var(--accent2);
+      border: 1px solid var(--accent2);
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.2em;
+      text-shadow: 0 0 8px var(--accent2);
+      box-shadow: 0 0 8px rgba(255,61,113,0.25);
+    }
+
+    /* Player shell */
+    .player-shell {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(0,229,255,0.07),
+        0 0 40px rgba(0,229,255,0.06),
+        0 24px 60px rgba(0,0,0,0.7);
+    }
+
+    /* Top bar */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      background: rgba(0,229,255,0.04);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .top-bar .circles { display: flex; gap: 6px; }
+    .top-bar .circles span {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: 0.4;
+    }
+
+    .top-bar .url {
+      flex: 1;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Rajdhani', monospace;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-bar .tag {
+      font-size: 10px;
+      font-family: 'Orbitron', monospace;
+      color: var(--accent);
+      opacity: 0.5;
+      letter-spacing: 0.15em;
+    }
+
+    /* Video */
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    video {
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* Overlay when stopped */
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(8,12,18,0.85);
+      transition: opacity 0.3s;
+      cursor: pointer;
+    }
+
+    .overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .play-btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      background: rgba(0,229,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 30px rgba(0,229,255,0.3), inset 0 0 20px rgba(0,229,255,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .play-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 50px rgba(0,229,255,0.5), inset 0 0 30px rgba(0,229,255,0.1);
+    }
+
+    .play-btn svg { margin-left: 5px; }
+
+    /* Controls bar */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.35);
+      border-top: 1px solid var(--border);
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .ctrl-btn:hover { color: var(--accent); background: rgba(0,229,255,0.08); }
+
+    .volume-wrap {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 80px; height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px rgba(0,229,255,0.6);
+    }
+
+    .live-indicator {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--accent2);
+      text-shadow: 0 0 8px var(--accent2);
+    }
+
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      box-shadow: 0 0 8px var(--accent2);
+      animation: blink 1.4s infinite;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 14px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,229,255,0.02);
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Rajdhani', monospace;
+      letter-spacing: 0.06em;
+    }
+
+    #status-msg { color: var(--accent); opacity: 0.7; }
+
+    /* Error */
+    .error-box {
+      display: none;
+      position: absolute; inset: 0;
+      align-items: center; justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(8,12,18,0.9);
+      color: var(--accent2);
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .error-box.show { display: flex; }
+    .error-box p { opacity: 0.7; font-family: 'Rajdhani', sans-serif; font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <div class="header">
+    <img class="logo" src="data:image/png;base64,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" alt="ChocoPop TV" />
+    <div class="channel-name">
+      <h1>TNT Sports Chile</h1>
+      <span class="sub">En vivo &middot; HD</span>
+    </div>
+    <div class="dot"></div>
+    <div class="badge">HLS</div>
+  </div>
+
+  <div class="player-shell">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div class="circles"><span></span><span></span><span></span></div>
+      <div class="url">45.184.109.10 › live › stream.m3u8</div>
+      <div class="tag">M3U8</div>
+    </div>
+
+    <!-- Video area -->
+    <div class="video-wrap">
+      <video id="video" playsinline></video>
+
+      <!-- Play overlay -->
+      <div class="overlay" id="overlay" onclick="startPlay()">
+        <div class="play-btn">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <polygon points="5,3 19,12 5,21" fill="#00e5ff"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div class="error-box" id="error-box">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        No se pudo cargar el stream
+        <p>Verificá que la URL esté activa y accesible.</p>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+
+      <!-- Play/Pause -->
+      <button class="ctrl-btn" id="btn-play" onclick="togglePlay()" title="Play / Pause">
+        <svg id="icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:block">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+        <svg id="icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+          <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+        </svg>
+      </button>
+
+      <!-- Volume -->
+      <div class="volume-wrap">
+        <button class="ctrl-btn" id="btn-mute" onclick="toggleMute()" title="Mute">
+          <svg id="icon-vol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+          <svg id="icon-muted" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none">
+            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+            <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </button>
+        <input type="range" id="vol" min="0" max="1" step="0.02" value="1" oninput="setVol(this.value)" />
+      </div>
+
+      <!-- Live indicator -->
+      <div class="live-indicator">
+        <div class="live-dot"></div>
+        LIVE
+      </div>
+
+      <!-- Fullscreen -->
+      <button class="ctrl-btn" onclick="goFullscreen()" title="Pantalla completa" style="margin-left:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/>
+          <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
+
+    </div>
+
+    <!-- Status -->
+    <div class="status-bar">
+      <span class="status-text" id="status-msg">Listo para reproducir</span>
+      <span class="status-text" id="quality-info">HLS · Adaptive</span>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  // URL original del stream
+  const STREAM_URL = 'http://45.184.109.10/live/69393EAE6ADBC65A68F942022362A202/86.m3u8';
+  // Proxy CORS para evitar bloqueo de contenido mixto HTTP en páginas HTTPS
+  const PROXY = 'https://corsproxy.io/?url=';
+  const SRC = (location.protocol === 'https:') ? PROXY + encodeURIComponent(STREAM_URL) : STREAM_URL;
+  const video   = document.getElementById('video');
+  const overlay = document.getElementById('overlay');
+  const errBox  = document.getElementById('error-box');
+  const statusMsg  = document.getElementById('status-msg');
+  const qualityInfo = document.getElementById('quality-info');
+  let hls;
+
+  function initHLS() {
+    if (Hls.isSupported()) {
+      hls = new Hls({ lowLatencyMode: true });
+      hls.loadSource(SRC);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        statusMsg.textContent = 'Stream cargado';
+        const levels = hls.levels;
+        if (levels.length) {
+          const res = levels[levels.length-1];
+          qualityInfo.textContent = `HLS · ${res.height ? res.height+'p' : 'Auto'}`;
+        }
+      });
+      hls.on(Hls.Events.ERROR, (e, data) => {
+        if (data.fatal) {
+          errBox.classList.add('show');
+          statusMsg.textContent = 'Error de stream';
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = SRC;
+    } else {
+      errBox.classList.add('show');
+      statusMsg.textContent = 'Navegador no compatible';
+    }
+  }
+
+  function startPlay() {
+    initHLS();
+    overlay.classList.add('hidden');
+    video.play().catch(() => {});
+    updatePlayIcon(true);
+    statusMsg.textContent = 'Reproduciendo...';
+  }
+
+  function togglePlay() {
+    if (video.paused) {
+      video.play();
+      updatePlayIcon(true);
+      statusMsg.textContent = 'Reproduciendo...';
+    } else {
+      video.pause();
+      updatePlayIcon(false);
+      statusMsg.textContent = 'Pausado';
+    }
+  }
+
+  function updatePlayIcon(playing) {
+    document.getElementById('icon-play').style.display  = playing ? 'none'  : 'block';
+    document.getElementById('icon-pause').style.display = playing ? 'block' : 'none';
+  }
+
+  function toggleMute() {
+    video.muted = !video.muted;
+    document.getElementById('icon-vol').style.display   = video.muted ? 'none'  : 'block';
+    document.getElementById('icon-muted').style.display = video.muted ? 'block' : 'none';
+  }
+
+  function setVol(v) {
+    video.volume = v;
+    if (v == 0) { video.muted = true; }
+    else { video.muted = false; }
+    document.getElementById('icon-vol').style.display   = video.muted ? 'none'  : 'block';
+    document.getElementById('icon-muted').style.display = video.muted ? 'block' : 'none';
+  }
+
+  function goFullscreen() {
+    const el = document.querySelector('.player-shell');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen && el.requestFullscreen();
+  }
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); if (!overlay.classList.contains('hidden')) startPlay(); else togglePlay(); }
+    if (e.code === 'KeyM') toggleMute();
+    if (e.code === 'KeyF') goFullscreen();
+  });
+</script>
+</body>
+</html>
