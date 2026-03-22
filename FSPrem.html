@@ -2,39 +2,51 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="referrer" content="no-referrer">
-<title>Fox Sports Prem HD — CVA TV</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<title>ESPN PREMIUM</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#080b11;--surface:#0d1220;--surface2:#131b2e;--border:#1a2540;--accent:#e8312a;--accent2:#ff6b63;--text:#e8edf5;--muted:#4a5a78;}
+:root {
+  --bg: #0a0d14;
+  --surface: #0f1520;
+  --surface2: #161e30;
+  --border: #1c2840;
+  --accent: #e8312a;
+  --accent2: #ff6b63;
+  --text: #e8edf5;
+  --muted: #5a6a85;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
-#app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;}
-header{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;background:rgba(13,18,32,.97);border-bottom:1px solid var(--border);flex-shrink:0;}
-.logo{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;letter-spacing:3px;color:#fff;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;overflow-x:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:50px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);}
+.logo{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;color:#fff;}
 .logo span{color:var(--accent);}
-.live-badge{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--accent);text-transform:uppercase;}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--accent);text-transform:uppercase;}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.4s infinite;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
-.channel-header{display:flex;align-items:center;gap:14px;padding:14px 22px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;}
-.ch-badge{width:48px;height:48px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--accent2);text-align:center;line-height:1.2;flex-shrink:0;padding:3px;}
-.ch-name{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;line-height:1;letter-spacing:.03em;}
-.ch-meta{font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:8px;}
-.live-tag{display:inline-flex;align-items:center;gap:4px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:3px;text-transform:uppercase;}
-.live-tag-dot{width:5px;height:5px;border-radius:50%;background:#fff;animation:pulse 1.4s infinite;}
-#player-wrap{flex:1;background:#000;position:relative;}
-#player{width:100%;height:100%;}
-.status-bar{padding:8px 22px;font-size:11px;color:var(--muted);background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;gap:7px;min-height:32px;flex-shrink:0;}
-.retry-btn{margin-left:auto;padding:4px 14px;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:11px;font-family:'Barlow',sans-serif;border-radius:4px;cursor:pointer;transition:all .2s;}
-.retry-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+#player-wrap{position:relative;background:#000;flex-shrink:0;}
+#player{width:100%;aspect-ratio:16/9;}
+
+.jw-progress{background-color:var(--accent) !important;}
+.jw-text-live::before{background-color:var(--accent) !important;}
+.jw-controlbar{background:rgba(10,13,20,.95) !important;border-top:1px solid var(--border) !important;}
+.jw-button-color{color:#6a7d9a !important;}
+.jw-reset-text{color:#fff !important;}
+
+#now-playing{padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;}
+#np-icon{width:42px;height:42px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent2);border:1px solid var(--border);text-align:center;padding:2px;flex-shrink:0;}
+#np-name{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;line-height:1;}
+#np-meta{font-size:12px;color:var(--muted);margin-top:3px;}
+.np-live{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-left:10px;}
+.np-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.4s infinite;}
+
+#status-bar{padding:5px 20px;font-size:11px;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;min-height:26px;}
 .spin{display:inline-block;animation:spinr .7s linear infinite;}
 @keyframes spinr{to{transform:rotate(360deg)}}
-.jw-progress{background-color:var(--accent) !important;}
-.jw-controlbar{background:rgba(8,11,17,.97) !important;border-top:1px solid var(--border) !important;}
-.jw-button-color{color:#5a6d90 !important;}
-.jw-reset-text{color:#fff !important;}
 </style>
 </head>
 <body>
@@ -43,27 +55,20 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
     <div class="logo">CVA<span>TV</span></div>
     <div class="live-badge"><div class="live-dot"></div>EN VIVO</div>
   </header>
-  <div class="channel-header">
-    <div class="ch-badge">FOX<br>PREM</div>
+  <div id="player-wrap"><div id="player"></div></div>
+  <div id="now-playing">
+    <div id="np-icon">FOX<br>PREM</div>
     <div>
-      <div class="ch-name">Fox Sports Prem HD</div>
-      <div class="ch-meta">
-        <span class="live-tag"><div class="live-tag-dot"></div>EN VIVO</span>
-        Deportes &middot; HD &middot; Cablevisión Argentina
-      </div>
+      <div id="np-name">Fox Sports Prem HD</div>
+      <div id="np-meta">Cablevisión Argentina <span class="np-live"><div class="np-live-dot"></div>EN VIVO</span></div>
     </div>
   </div>
-  <div id="player-wrap"><div id="player"></div></div>
-  <div class="status-bar" id="status">
-    <span class="spin">&#x21BB;</span> Conectando&hellip;
-    <button class="retry-btn" onclick="iniciar()">&#x21BB; Reiniciar</button>
-  </div>
+  <div id="status-bar"><span class="spin">↻</span> Conectando…</div>
 </div>
 
 <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
+<script>jwplayer.key = "XSuP4qMl+9tK17QNb+4+th2Pm9AWgMO/cYH8CI0HGGr7bdjo";</script>
 <script>
-jwplayer.key = "XSuP4qMl+9tK17QNb+4+th2Pm9AWgMO/cYH8CI0HGGr7bdjo";
-
 var CDN_HOSTS = ["cdn","chromecast"];
 function rndHost(){ return CDN_HOSTS[Math.floor(Math.random()*CDN_HOSTS.length)]; }
 
@@ -75,45 +80,49 @@ var ch = {
   k2: "4186a7c2a15f590a9399886feaec4257"
 };
 
-var inst = null;
+var playerInst = null;
 
-function setStatus(html){ document.getElementById("status").innerHTML = html + ' <button class="retry-btn" onclick="iniciar()">&#x21BB; Reiniciar</button>'; }
+function setStatus(html){ document.getElementById("status-bar").innerHTML = html; }
 
-function iniciar(){
+function sintonizar(ch){
+  setStatus('<span class="spin">↻</span> Conectando con '+ch.nombre+'…');
+
   var host = rndHost();
   var canal = atob(ch.b64);
   var url = "https://"+host+".cvattv.com.ar/live/c"+ch.n+"eds/"+canal+"/SA_Live_dash_enc_C/"+canal+".mpd";
 
-  setStatus('<span class="spin">&#x21BB;</span> Conectando con '+ch.nombre+'&hellip;');
-
-  if(inst){ try{ inst.remove(); }catch(e){} inst=null; }
+  if(playerInst){try{playerInst.remove();}catch(e){}playerInst=null;}
   document.getElementById("player").innerHTML="";
 
   jwplayer("player").setup({
-    playlist:[{ title:ch.nombre, description:"EN VIVO",
+    playlist:[{
+      title:ch.nombre, description:"EN VIVO",
       sources:[{ file:url, type:"dash", drm:{ clearkey:{ keyId:ch.k1, key:ch.k2 } } }]
     }],
     autostart:true, mute:false, volume:100,
-    width:"100%", height:"100%", stretching:"exactfit", aspectratio:"16:9", preload:"auto"
+    width:"100%", height:"100%", stretching:"exactfit", aspectratio:"16:9",
+    preload:"auto", cast:{}, sharing:{}
   });
 
-  inst = jwplayer("player");
+  playerInst = jwplayer("player");
 
-  inst.on("play", function(){
-    setStatus("&#9654; Reproduciendo &middot; "+ch.nombre+" &middot; "+host.toUpperCase());
-    try{ inst.setCurrentAudioTrack(1); }catch(e){}
+  playerInst.on("play",function(){
+    setStatus("▶ Reproduciendo · "+ch.nombre+" · "+host.toUpperCase());
+    try{playerInst.setCurrentAudioTrack(1);}catch(e){}
   });
-  inst.on("buffer", function(){ setStatus('<span class="spin">&#x21BB;</span> Cargando&hellip;'); });
-  inst.on("error", function(){
+  playerInst.on("error",function(){
     var altHost = host==="cdn"?"chromecast":"cdn";
     var altUrl = "https://"+altHost+".cvattv.com.ar/live/c"+ch.n+"eds/"+canal+"/SA_Live_dash_enc_C/"+canal+".mpd";
-    setStatus('<span class="spin">&#x21BB;</span> Reintentando servidor alternativo&hellip;');
-    try{ inst.load([{sources:[{file:altUrl,type:"dash",drm:{clearkey:{keyId:ch.k1,key:ch.k2}}}]}]); inst.play(); }
-    catch(ex){ setStatus("&#x2715; Error. Us&aacute; el bot&oacute;n Reiniciar."); }
+    setStatus('<span class="spin">↻</span> Reintentando con servidor alternativo…');
+    try{
+      playerInst.load([{sources:[{file:altUrl,type:"dash",drm:{clearkey:{keyId:ch.k1,key:ch.k2}}}]}]);
+      playerInst.play();
+    }catch(ex){ setStatus("✕ Error: no se pudo cargar "+ch.nombre); }
   });
+  playerInst.on("buffer",function(){ setStatus('<span class="spin">↻</span> Cargando…'); });
 
   var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
-  inst.on("fullscreen",function(e){
+  playerInst.on("fullscreen",function(e){
     if(!isIOS&&screen.orientation){
       if(e.fullscreen){(async function t(){try{await screen.orientation.lock("landscape");}catch(err){setTimeout(t,200);}})();}
       else{try{screen.orientation.unlock();}catch(err){}}
@@ -121,7 +130,7 @@ function iniciar(){
   });
 }
 
-iniciar();
+sintonizar(ch);
 </script>
 </body>
 </html>
