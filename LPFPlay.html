@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reproductor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #e8ff47;
+    --accent2: #47ffe8;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --bar-h: 4px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .wrap {
+    width: min(860px, 100vw);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .label {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    opacity: .8;
+  }
+
+  /* ── Video Shell ── */
+  .shell {
+    position: relative;
+    background: #000;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    border: 1px solid var(--border);
+    border-bottom: none;
+  }
+
+  video {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+
+  /* Loading overlay */
+  .loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.7);
+    transition: opacity .3s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Big play overlay */
+  .play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .play-overlay.hidden { opacity: 0; pointer-events: none; }
+  .play-overlay svg { filter: drop-shadow(0 0 18px var(--accent)); transition: transform .15s; }
+  .play-overlay:hover svg { transform: scale(1.08); }
+
+  /* ── Controls Bar ── */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    border-radius: 0 0 8px 8px;
+    padding: 10px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    position: relative;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  .progress-track {
+    width: 100%;
+    height: var(--bar-h);
+    background: var(--border);
+    border-radius: 9px;
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-buf {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: #2a2a3e;
+    border-radius: 9px;
+    transition: width .4s linear;
+  }
+  .progress-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: var(--accent);
+    border-radius: 9px;
+    transition: width .1s linear;
+  }
+  .progress-thumb {
+    position: absolute;
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 8px var(--accent);
+    pointer-events: none;
+    transition: left .1s linear;
+  }
+  .time-tooltip {
+    position: absolute;
+    bottom: 22px;
+    background: #000;
+    color: var(--accent);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+    display: none;
+    transform: translateX(-50%);
+  }
+
+  /* Buttons row */
+  .btn-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color .15s, background .15s;
+    flex-shrink: 0;
+  }
+  .btn:hover { color: var(--text); background: var(--border); }
+  .btn.active { color: var(--accent); }
+
+  .time-disp {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .05em;
+    flex: 1;
+    text-align: center;
+  }
+  .time-disp span { color: var(--text); }
+
+  /* Volume */
+  .vol-wrap { display: flex; align-items: center; gap: 6px; }
+  .vol-slider {
+    -webkit-appearance: none;
+    width: 70px; height: var(--bar-h);
+    background: var(--border);
+    border-radius: 9px;
+    outline: none;
+    cursor: pointer;
+    accent-color: var(--accent2);
+  }
+  .vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px; height: 10px;
+    background: var(--accent2);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent2);
+  }
+
+  /* Quality badge */
+  .quality {
+    font-size: 10px;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    letter-spacing: .08em;
+    margin-left: auto;
+  }
+
+  /* Error */
+  .error-box {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #ff6b6b;
+    font-size: 13px;
+    display: none;
+  }
+  .error-box.show { display: flex; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="label">▶ Stream en vivo</div>
+  <div class="shell" id="shell">
+    <video id="vid" playsinline></video>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="play-overlay" id="playOverlay">
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="35" stroke="#e8ff47" stroke-width="1.5" opacity=".5"/>
+        <polygon points="28,20 56,36 28,52" fill="#e8ff47"/>
+      </svg>
+    </div>
+
+    <div class="error-box" id="errBox">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="#ff6b6b"/>
+      </svg>
+      <span id="errMsg">No se pudo cargar el stream</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <!-- Progress -->
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track">
+        <div class="progress-buf" id="bufBar"></div>
+        <div class="progress-fill" id="progFill"></div>
+      </div>
+      <div class="progress-thumb" id="progThumb"></div>
+      <div class="time-tooltip" id="tooltip"></div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <!-- Play/Pause -->
+      <button class="btn" id="playBtn" title="Play/Pausa">
+        <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5,3 19,12 5,21"/>
+        </svg>
+      </button>
+
+      <!-- Seek -10 -->
+      <button class="btn" id="bkBtn" title="-10s">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+          <text x="8" y="14" font-size="6" fill="currentColor" stroke="none" font-family="monospace">10</text>
+        </svg>
+      </button>
+
+      <!-- Seek +10 -->
+      <button class="btn" id="fwBtn" title="+10s">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.49-4.5"/>
+          <text x="8" y="14" font-size="6" fill="currentColor" stroke="none" font-family="monospace">10</text>
+        </svg>
+      </button>
+
+      <!-- Time -->
+      <div class="time-disp" id="timeDisp"><span>0:00</span> / <span id="durDisp">--:--</span></div>
+
+      <!-- Volume -->
+      <div class="vol-wrap">
+        <button class="btn" id="muteBtn" title="Silenciar">
+          <svg id="volIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path id="volWave" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+        </button>
+        <input type="range" class="vol-slider" id="volSlider" min="0" max="1" step="0.02" value="1">
+      </div>
+
+      <!-- Fullscreen -->
+      <button class="btn" id="fsBtn" title="Pantalla completa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="8 3 3 3 3 8"/><polyline points="21 8 21 3 16 3"/>
+          <polyline points="3 16 3 21 8 21"/><polyline points="16 21 21 21 21 16"/>
+        </svg>
+      </button>
+
+      <div class="quality" id="qualityBadge">AUTO</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const SRC = params.get('src') || "https://lpf.vod.immergo.tv/lpf-immergo/transcoded/1fc64bec-75a9-4ac9-a733-48ef37be1e68/hls/master.m3u8";
+
+const vid = document.getElementById('vid');
+const loading = document.getElementById('loading');
+const playOverlay = document.getElementById('playOverlay');
+const playBtn = document.getElementById('playBtn');
+const playIcon = document.getElementById('playIcon');
+const bkBtn = document.getElementById('bkBtn');
+const fwBtn = document.getElementById('fwBtn');
+const muteBtn = document.getElementById('muteBtn');
+const volSlider = document.getElementById('volSlider');
+const volIcon = document.getElementById('volIcon');
+const volWave = document.getElementById('volWave');
+const fsBtn = document.getElementById('fsBtn');
+const progFill = document.getElementById('progFill');
+const progThumb = document.getElementById('progThumb');
+const bufBar = document.getElementById('bufBar');
+const progressWrap = document.getElementById('progressWrap');
+const timeDisp = document.getElementById('timeDisp');
+const durDisp = document.getElementById('durDisp');
+const tooltip = document.getElementById('tooltip');
+const errBox = document.getElementById('errBox');
+const errMsg = document.getElementById('errMsg');
+const qualityBadge = document.getElementById('qualityBadge');
+
+let hls, dragging = false;
+
+// Init HLS
+function initPlayer() {
+  if (Hls.isSupported()) {
+    hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+    hls.loadSource(SRC);
+    hls.attachMedia(vid);
+    hls.on(Hls.Events.MANIFEST_PARSED, (e, d) => {
+      loading.classList.add('hidden');
+      qualityBadge.textContent = 'AUTO';
+    });
+    hls.on(Hls.Events.LEVEL_SWITCHED, (e, d) => {
+      const lvl = hls.levels[d.level];
+      if (lvl) qualityBadge.textContent = lvl.height ? lvl.height + 'p' : 'AUTO';
+    });
+    hls.on(Hls.Events.ERROR, (e, d) => {
+      if (d.fatal) { showError(d.details); }
+    });
+  } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+    vid.src = SRC;
+    vid.addEventListener('loadedmetadata', () => loading.classList.add('hidden'));
+  } else {
+    showError('Tu navegador no soporta HLS');
+  }
+}
+
+function showError(msg) {
+  loading.classList.add('hidden');
+  errBox.classList.add('show');
+  errMsg.textContent = msg || 'No se pudo cargar el stream';
+}
+
+// Format time
+function fmt(s) {
+  if (!isFinite(s)) return '--:--';
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+// Progress update
+vid.addEventListener('timeupdate', updateProgress);
+vid.addEventListener('progress', updateBuffer);
+vid.addEventListener('durationchange', () => { durDisp.textContent = fmt(vid.duration); });
+
+function updateProgress() {
+  if (dragging || !vid.duration) return;
+  const p = vid.currentTime / vid.duration * 100;
+  progFill.style.width = p + '%';
+  progThumb.style.left = p + '%';
+  timeDisp.querySelector('span').textContent = fmt(vid.currentTime);
+}
+
+function updateBuffer() {
+  if (!vid.duration || !vid.buffered.length) return;
+  const p = vid.buffered.end(vid.buffered.length - 1) / vid.duration * 100;
+  bufBar.style.width = p + '%';
+}
+
+// Seek by click/drag on progress bar
+progressWrap.addEventListener('mousedown', e => { dragging = true; seek(e); });
+progressWrap.addEventListener('mousemove', e => {
+  showTooltip(e);
+  if (dragging) seek(e);
+});
+progressWrap.addEventListener('mouseup', e => { dragging = false; seek(e); });
+progressWrap.addEventListener('mouseleave', () => {
+  if (dragging) dragging = false;
+  tooltip.style.display = 'none';
+});
+
+function seek(e) {
+  const rect = progressWrap.getBoundingClientRect();
+  const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  if (vid.duration) {
+    vid.currentTime = p * vid.duration;
+    progFill.style.width = (p * 100) + '%';
+    progThumb.style.left = (p * 100) + '%';
+  }
+}
+
+function showTooltip(e) {
+  if (!vid.duration) return;
+  const rect = progressWrap.getBoundingClientRect();
+  const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  tooltip.textContent = fmt(p * vid.duration);
+  tooltip.style.left = (p * 100) + '%';
+  tooltip.style.display = 'block';
+}
+
+// Play/Pause
+function togglePlay() {
+  if (vid.paused) { vid.play(); playOverlay.classList.add('hidden'); }
+  else vid.pause();
+}
+
+playBtn.addEventListener('click', togglePlay);
+playOverlay.addEventListener('click', togglePlay);
+
+vid.addEventListener('play', () => {
+  playIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  playOverlay.classList.add('hidden');
+});
+vid.addEventListener('pause', () => {
+  playIcon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+});
+vid.addEventListener('waiting', () => loading.classList.remove('hidden'));
+vid.addEventListener('playing', () => loading.classList.add('hidden'));
+
+// Seek buttons
+bkBtn.addEventListener('click', () => vid.currentTime = Math.max(0, vid.currentTime - 10));
+fwBtn.addEventListener('click', () => vid.currentTime = Math.min(vid.duration || Infinity, vid.currentTime + 10));
+
+// Volume
+volSlider.addEventListener('input', () => {
+  vid.volume = volSlider.value;
+  vid.muted = vid.volume === 0;
+  updateVolIcon();
+});
+muteBtn.addEventListener('click', () => {
+  vid.muted = !vid.muted;
+  volSlider.value = vid.muted ? 0 : vid.volume;
+  updateVolIcon();
+});
+function updateVolIcon() {
+  volWave.style.display = vid.muted || vid.volume === 0 ? 'none' : '';
+}
+
+// Fullscreen
+fsBtn.addEventListener('click', () => {
+  const el = document.getElementById('shell');
+  if (!document.fullscreenElement) el.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowLeft') vid.currentTime = Math.max(0, vid.currentTime - 10);
+  if (e.code === 'ArrowRight') vid.currentTime = Math.min(vid.duration || Infinity, vid.currentTime + 10);
+  if (e.code === 'ArrowUp') { vid.volume = Math.min(1, vid.volume + 0.1); volSlider.value = vid.volume; }
+  if (e.code === 'ArrowDown') { vid.volume = Math.max(0, vid.volume - 0.1); volSlider.value = vid.volume; }
+  if (e.code === 'KeyF') fsBtn.click();
+  if (e.code === 'KeyM') muteBtn.click();
+});
+
+initPlayer();
+</script>
+</body>
+</html>
