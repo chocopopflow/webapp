@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Reproductor</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;background:#000;overflow:hidden;}
+  #wrap{position:relative;width:100%;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;}
+  /* HLS video */
+  video{position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;}
+  /* Error / loading */
+  #msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#c9a882;font-family:'Segoe UI',sans-serif;font-size:.95rem;text-align:center;padding:20px;background:#0f0800;}
+  #msg .ico{font-size:2.4rem;}
+  #msg .txt{color:#fff8f0;font-size:1rem;font-weight:600;}
+  #msg .sub{color:#7a5c3a;font-size:.82rem;max-width:340px;line-height:1.6;}
+  #msg .spin{width:38px;height:38px;border:3px solid rgba(232,130,10,.2);border-top-color:#e8820a;border-radius:50%;animation:sp .7s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <iframe id="ifr" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
+  <video id="vid" controls playsinline></video>
+  <div id="msg">
+    <div class="spin"></div>
+    <div class="txt">Cargando...</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<script>
+(function(){
+  // ── Leer parámetro ?v= ──────────────────────────────────────
+  var params = new URLSearchParams(window.location.search);
+  var raw = params.get('v') || params.get('url') || '';
+
+  var ifr = document.getElementById('ifr');
+  var vid = document.getElementById('vid');
+  var msg = document.getElementById('msg');
+
+  function showError(txt) {
+    msg.innerHTML = '<div class="ico">⚠️</div><div class="txt">'+txt+'</div><div class="sub">Verificá que el link sea correcto y que el servidor permita la reproducción.</div>';
+    msg.style.display = 'flex';
+  }
+
+  function ready() {
+    msg.style.display = 'none';
+  }
+
+  if (!raw || raw.length < 5) {
+    showError('No se recibió ningún link de video.');
+    return;
+  }
+
+  // ── Normalizar URL ──────────────────────────────────────────
+  function normalize(url) {
+    url = url.trim();
+
+    // ok.ru — cualquier formato a videoembed
+    var ok = url.match(/(?:m\.)?ok\.ru\/(?:video|v)\/([0-9]+)/);
+    if (ok) return { type:'iframe', src:'https://ok.ru/videoembed/'+ok[1]+'?autoplay=1' };
+
+    // YouTube — watch, youtu.be, shorts → nocookie embed
+    var yt = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (yt) return { type:'iframe', src:'https://www.youtube-nocookie.com/embed/'+yt[1]+'?autoplay=1&rel=0' };
+
+    // YouTube ID puro (11 chars)
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url))
+      return { type:'iframe', src:'https://www.youtube-nocookie.com/embed/'+url+'?autoplay=1&rel=0' };
+
+    // Vimeo
+    var vim = url.match(/vimeo\.com\/(\d+)/);
+    if (vim) return { type:'iframe', src:'https://player.vimeo.com/video/'+vim[1]+'?autoplay=1' };
+
+    // Dailymotion
+    var dm = url.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/);
+    if (dm) return { type:'iframe', src:'https://www.dailymotion.com/embed/video/'+dm[1]+'?autoplay=1' };
+
+    // m3u8 / HLS
+    if (url.indexOf('.m3u8') !== -1)
+      return { type:'hls', src:url };
+
+    // mp4 directo
+    if (url.match(/\.(mp4|webm|ogg)(\?|$)/i))
+      return { type:'video', src:url };
+
+    // Ya es un embed (contiene /embed/ o /videoembed/)
+    if (url.indexOf('/embed/') !== -1 || url.indexOf('/videoembed/') !== -1 || url.indexOf('player.') !== -1)
+      return { type:'iframe', src:url };
+
+    // Cualquier otra URL — intentar como iframe
+    return { type:'iframe', src:url };
+  }
+
+  var result = normalize(raw);
+
+  // ── Reproducir ──────────────────────────────────────────────
+  if (result.type === 'iframe') {
+    ifr.src = result.src;
+    ifr.style.display = 'block';
+    ifr.onload = ready;
+    ifr.onerror = function(){ showError('No se pudo cargar el reproductor.'); };
+    // Fallback: si en 8s no disparó onload, ocultar loader igual
+    setTimeout(ready, 8000);
+
+  } else if (result.type === 'hls') {
+    vid.style.display = 'block';
+    if (Hls.isSupported()) {
+      var hls = new Hls();
+      hls.loadSource(result.src);
+      hls.attachMedia(vid);
+      hls.on(Hls.Events.MANIFEST_PARSED, function(){
+        ready();
+        vid.play().catch(function(){});
+      });
+      hls.on(Hls.Events.ERROR, function(e, d){
+        if (d.fatal) showError('Error al cargar el stream HLS.');
+      });
+    } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+      vid.src = result.src;
+      vid.addEventListener('loadedmetadata', function(){ ready(); vid.play().catch(function(){}); });
+    } else {
+      showError('Tu navegador no soporta este formato de video.');
+    }
+
+  } else if (result.type === 'video') {
+    vid.style.display = 'block';
+    vid.src = result.src;
+    vid.addEventListener('canplay', ready);
+    vid.onerror = function(){ showError('No se pudo cargar el video.'); };
+    vid.play().catch(function(){});
+  }
+
+})();
+</script>
+</body>
+</html>
