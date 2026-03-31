@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ChocoPop TV - Reproductor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        /* Logo en esquina inferior derecha */
+        .player-logo {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.9;
+            transition: opacity 0.3s ease;
+        }
+        
+        .player-logo img {
+            width: 100px;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+            border-radius: 12px;
+        }
+        
+        .player-wrapper:hover .player-logo {
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .player-logo {
+                bottom: 12px;
+                right: 12px;
+            }
+            .player-logo img {
+                width: 65px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="player-wrapper">
+        <video id="videoPlayer" controls playsinline preload="auto"></video>
+        
+        <div class="player-logo">
+            <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiHonBz0P0iQzOrTo6-l10Anu04rzY3m3xInH3jJu6aMC776HSdYZ8A7Ursl2RkyrRHL0HVlmvql8S0cfVhfHV5Jv2BJefkR-UdV4ZRyUWt2Je9Ti5uY25dsvlYIHpbpmKDq-RnTwR0KJ6mgLbrQBkfAXOkuqKtHURxozGZx9-I5MRrZwn7348Zjvje7RU/s582/ChocoPop%20TV%20Logo.png" 
+                 alt="ChocoPop TV">
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        // Señal M3U8 - ChocoPop TV
+        const streamUrl = 'https://smarthard.click/hls/sabrouchdirectvarg/index.m3u8';
+        
+        const video = document.getElementById('videoPlayer');
+        
+        if (Hls.isSupported()) {
+            const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                maxBufferLength: 30
+            });
+            
+            hls.loadSource(streamUrl);
+            hls.attachMedia(video);
+            
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                console.log('✅ ChocoPop TV - Stream cargado correctamente');
+                video.play().catch(e => console.log('Auto-play bloqueado por el navegador'));
+            });
+            
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                console.error('Error HLS:', data);
+                if (data.fatal) {
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.log('Error de red, reintentando...');
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log('Error de media, recuperando...');
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            console.log('Error fatal');
+                            break;
+                    }
+                }
+            });
+        } 
+        else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = streamUrl;
+            video.addEventListener('loadedmetadata', function() {
+                console.log('✅ ChocoPop TV - Stream cargado (Safari)');
+                video.play().catch(e => console.log('Auto-play bloqueado'));
+            });
+        } 
+        else {
+            video.parentElement.innerHTML = '<p style="color: white; text-align: center; padding: 20px;">Tu navegador no soporta reproducción de streams HLS</p>';
+        }
+    </script>
+</body>
+</html>
