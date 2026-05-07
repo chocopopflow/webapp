@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Player</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    .player-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    video {
+      width: 100%; height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    /* ── overlay que captura clicks ── */
+    .click-zone {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      cursor: none;
+    }
+
+    /* ── controles ── */
+    .controls {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 3;
+      padding: 0 14px 12px;
+      background: linear-gradient(transparent, rgba(0,0,0,.72) 100%);
+      opacity: 0;
+      transition: opacity .25s ease;
+      pointer-events: none;
+    }
+    .player-wrap:hover .controls,
+    .player-wrap.paused .controls {
+      opacity: 1;
+      pointer-events: all;
+      cursor: default;
+    }
+    .player-wrap:hover { cursor: default; }
+
+    /* progress */
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: rgba(255,255,255,.25);
+      border-radius: 2px;
+      margin-bottom: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: height .15s ease;
+    }
+    .progress-bar:hover { height: 5px; }
+    .progress-fill {
+      height: 100%;
+      background: #e8e8e8;
+      border-radius: 2px;
+      width: 0%;
+      pointer-events: none;
+    }
+    .progress-bar input[type=range] {
+      position: absolute;
+      inset: -6px 0;
+      width: 100%;
+      height: calc(100% + 12px);
+      opacity: 0;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    /* row of buttons */
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: .85;
+      transition: opacity .15s, transform .1s;
+      flex-shrink: 0;
+    }
+    button:hover { opacity: 1; transform: scale(1.08); }
+    button svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* live badge */
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: #fff;
+      text-transform: uppercase;
+      margin-left: 2px;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #e53935;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: .35; }
+    }
+
+    /* time (for VOD) */
+    .time-display {
+      font-size: 12px;
+      color: rgba(255,255,255,.8);
+      letter-spacing: .03em;
+      white-space: nowrap;
+    }
+
+    /* spacer */
+    .spacer { flex: 1; }
+
+    /* volume */
+    .volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .volume-slider {
+      width: 0;
+      overflow: hidden;
+      transition: width .2s ease;
+    }
+    .volume-wrap:hover .volume-slider { width: 64px; }
+    .volume-slider input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 64px;
+      height: 3px;
+      background: rgba(255,255,255,.35);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .volume-slider input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    .volume-slider input[type=range]::-moz-range-thumb {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* quality selector */
+    .quality-wrap { position: relative; }
+    .quality-btn { font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 4px 6px; }
+    .quality-menu {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      background: rgba(20,20,20,.95);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 6px;
+      min-width: 100px;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    .quality-wrap.open .quality-menu { display: block; }
+    .quality-menu button {
+      width: 100%;
+      padding: 8px 14px;
+      font-size: 12px;
+      text-align: left;
+      border-radius: 0;
+      opacity: .75;
+      transition: background .12s, opacity .12s;
+    }
+    .quality-menu button:hover { background: rgba(255,255,255,.1); opacity: 1; }
+    .quality-menu button.active { opacity: 1; color: #e8e8e8; font-weight: 700; }
+
+    /* loading spinner */
+    .spinner {
+      position: absolute;
+      inset: 0; z-index: 4;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .spinner svg {
+      width: 44px; height: 44px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner.hidden { display: none; }
+
+    /* big play overlay */
+    .play-overlay {
+      position: absolute;
+      inset: 0; z-index: 5;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .play-overlay.show { opacity: 1; }
+    .play-overlay svg { width: 64px; height: 64px; fill: rgba(255,255,255,.85); }
+
+    /* error */
+    .error-msg {
+      display: none;
+      position: absolute;
+      inset: 0; z-index: 6;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,.6);
+      color: rgba(255,255,255,.75);
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+    .error-msg.show { display: flex; }
+  </style>
+</head>
+<body>
+
+<div class="player-wrap paused" id="playerWrap">
+  <video id="video" playsinline></video>
+
+  <div class="click-zone" id="clickZone"></div>
+
+  <!-- Spinner -->
+  <div class="spinner" id="spinner">
+    <svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="3"
+        stroke-dasharray="90 30" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <!-- Big play flash -->
+  <div class="play-overlay" id="playOverlay">
+    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+  </div>
+
+  <!-- Error -->
+  <div class="error-msg" id="errorMsg">No se pudo cargar el stream. Verifica la URL o intenta de nuevo.</div>
+
+  <!-- Controls -->
+  <div class="controls" id="controls">
+    <!-- Progress (only for VOD) -->
+    <div class="progress-bar" id="progressBar" style="display:none">
+      <div class="progress-fill" id="progressFill"></div>
+      <input type="range" id="seek" min="0" max="100" value="0" step="0.1">
+    </div>
+
+    <div class="ctrl-row">
+      <!-- Play/Pause -->
+      <button id="playBtn" title="Play / Pause">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+
+      <!-- Live badge / time -->
+      <div class="live-badge" id="liveBadge">
+        <span class="live-dot"></span> EN VIVO
+      </div>
+      <div class="time-display" id="timeDisplay" style="display:none">0:00 / 0:00</div>
+
+      <div class="spacer"></div>
+
+      <!-- Volume -->
+      <div class="volume-wrap">
+        <button id="muteBtn" title="Silenciar">
+          <svg id="iconVol" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z"/></svg>
+          <svg id="iconMute" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06A8.99 8.99 0 0 0 17.73 19l1.27 1.27L20.27 19 5.27 4 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        </button>
+        <div class="volume-slider">
+          <input type="range" id="volRange" min="0" max="1" step="0.02" value="1">
+        </div>
+      </div>
+
+      <!-- Quality -->
+      <div class="quality-wrap" id="qualityWrap">
+        <button class="quality-btn" id="qualityBtn">AUTO</button>
+        <div class="quality-menu" id="qualityMenu"></div>
+      </div>
+
+      <!-- Fullscreen -->
+      <button id="fsBtn" title="Pantalla completa">
+        <svg id="iconFs" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+        <svg id="iconExit" viewBox="0 0 24 24" style="display:none"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SRC = "https://liveassets-uvod-live-encoder-assets-1-static-2.encoders.immergo.tv/6fdc50b0-9464-4e27-bc73-0859575fd82c/master-live.m3u8";
+
+const wrap      = document.getElementById("playerWrap");
+const video     = document.getElementById("video");
+const clickZone = document.getElementById("clickZone");
+const spinner   = document.getElementById("spinner");
+const errMsg    = document.getElementById("errorMsg");
+const playBtn   = document.getElementById("playBtn");
+const iconPlay  = document.getElementById("iconPlay");
+const iconPause = document.getElementById("iconPause");
+const liveBadge = document.getElementById("liveBadge");
+const timeDisp  = document.getElementById("timeDisplay");
+const progressBar  = document.getElementById("progressBar");
+const progressFill = document.getElementById("progressFill");
+const seekInput = document.getElementById("seek");
+const muteBtn   = document.getElementById("muteBtn");
+const iconVol   = document.getElementById("iconVol");
+const iconMute  = document.getElementById("iconMute");
+const volRange  = document.getElementById("volRange");
+const qualityWrap = document.getElementById("qualityWrap");
+const qualityBtn  = document.getElementById("qualityBtn");
+const qualityMenu = document.getElementById("qualityMenu");
+const fsBtn     = document.getElementById("fsBtn");
+const iconFs    = document.getElementById("iconFs");
+const iconExit  = document.getElementById("iconExit");
+const playOverlay = document.getElementById("playOverlay");
+
+let hls, isLive = true, seeking = false;
+
+// ── HLS init ──
+function initPlayer() {
+  if (Hls.isSupported()) {
+    hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+    hls.loadSource(SRC);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+      isLive = hls.levels.length > 0 && video.duration === Infinity;
+      buildQualityMenu(data.levels);
+      showSpinner(false);
+      video.play().catch(() => {});
+    });
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) {
+        showSpinner(false);
+        errMsg.classList.add("show");
+      }
+    });
+  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src = SRC;
+    video.addEventListener("loadedmetadata", () => {
+      showSpinner(false);
+      video.play().catch(() => {});
+    });
+  } else {
+    showSpinner(false);
+    errMsg.classList.add("show");
+  }
+}
+
+// ── Quality menu ──
+function buildQualityMenu(levels) {
+  if (!hls || levels.length <= 1) { qualityWrap.style.display = "none"; return; }
+  qualityMenu.innerHTML = "";
+
+  const auto = document.createElement("button");
+  auto.textContent = "Auto";
+  auto.classList.add("active");
+  auto.addEventListener("click", () => {
+    hls.currentLevel = -1;
+    qualityBtn.textContent = "AUTO";
+    setActiveQ(-1);
+    closeQ();
+  });
+  qualityMenu.appendChild(auto);
+
+  levels.forEach((lvl, i) => {
+    const btn = document.createElement("button");
+    const label = lvl.height ? `${lvl.height}p` : `${Math.round((lvl.bitrate||0)/1000)}k`;
+    btn.textContent = label;
+    btn.dataset.index = i;
+    btn.addEventListener("click", () => {
+      hls.currentLevel = i;
+      qualityBtn.textContent = label;
+      setActiveQ(i);
+      closeQ();
+    });
+    qualityMenu.appendChild(btn);
+  });
+}
+function setActiveQ(idx) {
+  qualityMenu.querySelectorAll("button").forEach((b, i) => {
+    b.classList.toggle("active", idx === -1 ? i === 0 : parseInt(b.dataset.index) === idx);
+  });
+}
+function closeQ() { qualityWrap.classList.remove("open"); }
+
+qualityBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  qualityWrap.classList.toggle("open");
+});
+document.addEventListener("click", closeQ);
+qualityMenu.addEventListener("click", e => e.stopPropagation());
+
+// ── Spinner ──
+function showSpinner(v) { spinner.classList.toggle("hidden", !v); }
+video.addEventListener("waiting", () => showSpinner(true));
+video.addEventListener("canplay", () => showSpinner(false));
+video.addEventListener("playing", () => showSpinner(false));
+showSpinner(true);
+
+// ── Play / Pause ──
+function togglePlay() {
+  if (video.paused) video.play();
+  else video.pause();
+}
+function flashOverlay() {
+  playOverlay.classList.add("show");
+  setTimeout(() => playOverlay.classList.remove("show"), 350);
+}
+clickZone.addEventListener("click", () => { togglePlay(); flashOverlay(); });
+playBtn.addEventListener("click", togglePlay);
+
+video.addEventListener("play",  () => { iconPlay.style.display="none"; iconPause.style.display=""; wrap.classList.remove("paused"); });
+video.addEventListener("pause", () => { iconPlay.style.display=""; iconPause.style.display="none"; wrap.classList.add("paused"); });
+
+// ── Progress (VOD only) ──
+video.addEventListener("durationchange", () => {
+  isLive = !isFinite(video.duration);
+  liveBadge.style.display = isLive ? "" : "none";
+  timeDisp.style.display  = isLive ? "none" : "";
+  progressBar.style.display = isLive ? "none" : "";
+});
+video.addEventListener("timeupdate", () => {
+  if (isLive || seeking) return;
+  const pct = (video.currentTime / video.duration) * 100 || 0;
+  progressFill.style.width = pct + "%";
+  seekInput.value = pct;
+  timeDisp.textContent = fmt(video.currentTime) + " / " + fmt(video.duration);
+});
+seekInput.addEventListener("mousedown", () => seeking = true);
+seekInput.addEventListener("input", () => {
+  const t = (seekInput.value / 100) * video.duration;
+  progressFill.style.width = seekInput.value + "%";
+  video.currentTime = t;
+});
+seekInput.addEventListener("mouseup", () => seeking = false);
+
+function fmt(s) {
+  s = Math.floor(s);
+  const m = Math.floor(s/60), sec = s%60;
+  return m + ":" + String(sec).padStart(2,"0");
+}
+
+// ── Volume ──
+muteBtn.addEventListener("click", () => { video.muted = !video.muted; });
+video.addEventListener("volumechange", () => {
+  const muted = video.muted || video.volume === 0;
+  iconVol.style.display  = muted ? "none" : "";
+  iconMute.style.display = muted ? "" : "none";
+  if (!video.muted) volRange.value = video.volume;
+});
+volRange.addEventListener("input", () => {
+  video.volume = volRange.value;
+  video.muted = volRange.value == 0;
+});
+
+// ── Fullscreen ──
+fsBtn.addEventListener("click", () => {
+  if (!document.fullscreenElement) wrap.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+document.addEventListener("fullscreenchange", () => {
+  const fs = !!document.fullscreenElement;
+  iconFs.style.display   = fs ? "none" : "";
+  iconExit.style.display = fs ? "" : "none";
+});
+
+// ── Keyboard ──
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if (e.code === "KeyF") fsBtn.click();
+  if (e.code === "KeyM") muteBtn.click();
+});
+
+initPlayer();
+</script>
+</body>
+</html>
