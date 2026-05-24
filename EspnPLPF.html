@@ -2,103 +2,199 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Fox Sports Premium HD – ChocoPop Flow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="referrer" content="no-referrer"/>
+<title>Fox Sports Premium HD — En Vivo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;height:100%;background:#000;overflow:hidden;}
-#player-container{position:relative;width:100%;height:100vh;}
-#player{width:100%;height:100%;}
-.chocopop-logo{
-  position:absolute;
-  bottom:54px;
-  left:14px;
-  z-index:9999;
-  pointer-events:none;
-  display:flex;
-  align-items:center;
-  gap:6px;
-  opacity:.92;
-  filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));
+:root{
+  --bg:#08090d;
+  --surface:#0f1118;
+  --border:#1a1f2e;
+  --fox:#003DA5;
+  --fox2:#0052cc;
+  --red:#e8001c;
+  --text:#f0f4fc;
+  --muted:#4a5568;
 }
-.chocopop-logo img{
-  height:36px;
-  width:auto;
+
+html,body{
+  height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  overflow:hidden;
 }
+
+/* grain overlay */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity:.2;
+}
+
+#app{
+  display:flex;flex-direction:column;height:100vh;
+}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:48px;flex-shrink:0;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  animation:fadeDown .5s ease both;
+}
+
+.logo-wrap{display:flex;align-items:center;gap:10px;}
+
+.fox-badge{
+  background:var(--fox);
+  font-family:'Bebas Neue',sans-serif;
+  font-size:18px;letter-spacing:2px;color:#fff;
+  padding:4px 12px;
+  clip-path:polygon(0 0,100% 0,92% 100%,0 100%);
+  line-height:1;
+}
+
+.ch-title{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:20px;letter-spacing:2px;color:var(--text);
+}
+
+.live-pill{
+  display:flex;align-items:center;gap:7px;
+  background:rgba(232,0,28,.1);
+  border:1px solid rgba(232,0,28,.3);
+  border-radius:99px;padding:4px 12px;
+  font-size:10px;font-weight:500;letter-spacing:.15em;
+  color:var(--red);text-transform:uppercase;
+}
+.live-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--red);
+  animation:pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── PLAYER ── */
+#player-wrap{
+  flex:1;position:relative;background:#000;
+  animation:fadeUp .6s ease .1s both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+iframe#stream{
+  width:100%;height:100%;
+  border:none;display:block;
+}
+
+/* Loading screen shown until iframe loads */
+#loading{
+  position:absolute;inset:0;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:16px;
+  transition:opacity .4s;
+  z-index:10;
+}
+#loading.gone{opacity:0;pointer-events:none;}
+
+.spinner{
+  width:44px;height:44px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.06);
+  border-top-color:var(--fox2);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.loading-ch{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:28px;letter-spacing:3px;color:var(--text);
+}
+.loading-sub{font-size:12px;color:var(--muted);letter-spacing:.5px;}
+
+/* ── FOOTER ── */
+footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:36px;flex-shrink:0;
+  background:var(--surface);border-top:1px solid var(--border);
+  font-size:11px;color:var(--muted);
+  animation:fadeDown .5s ease .2s both;
+}
+.footer-left{display:flex;align-items:center;gap:6px;}
+.dot-blue{width:5px;height:5px;border-radius:50%;background:var(--fox2);}
+.fs-btn{
+  background:none;border:1px solid var(--border);
+  border-radius:4px;padding:3px 10px;
+  color:var(--muted);font-size:11px;font-family:'DM Sans',sans-serif;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.fs-btn:hover{color:var(--text);border-color:var(--fox2);}
+.fs-btn svg{width:13px;height:13px;fill:currentColor;}
 </style>
 </head>
 <body>
-<div id="player-container">
-  <div id="player"></div>
-  <div class="chocopop-logo">
-    <img src="ChocoPop_Flow.png" alt="ChocoPop Flow" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
-    <div style="display:none;align-items:center;gap:4px;background:rgba(0,0,0,.55);border-radius:8px;padding:4px 8px;">
-      <span style="font-family:'Arial Black',sans-serif;font-size:13px;font-weight:900;color:#f5c200;letter-spacing:1px;text-shadow:1px 1px 0 #b85c00;">Choco</span><span style="font-family:'Arial Black',sans-serif;font-size:13px;font-weight:900;color:#e03020;letter-spacing:1px;text-shadow:1px 1px 0 #7a1000;">Pop</span><span style="font-family:'Arial Black',sans-serif;font-size:12px;font-weight:700;color:#fff;letter-spacing:.5px;margin-left:3px;opacity:.85;">FLOW</span>
+<div id="app">
+
+  <header>
+    <div class="logo-wrap">
+      <div class="fox-badge">FOX</div>
+      <div class="ch-title">Sports Premium HD</div>
     </div>
+    <div class="live-pill">
+      <div class="live-dot"></div>
+      En vivo
+    </div>
+  </header>
+
+  <div id="player-wrap">
+    <div id="loading">
+      <div class="spinner"></div>
+      <div class="loading-ch">FOX SPORTS</div>
+      <div class="loading-sub">Conectando al stream…</div>
+    </div>
+    <iframe
+      id="stream"
+      src="https://cantodosflotooodsmodi.netlify.app/cantodosflotooodsmodisinsaatu.html?get=Rm94X1Nwb3J0c19QcmVtaXVuX0hE"
+      allow="encrypted-media; autoplay; fullscreen"
+      allowfullscreen
+      scrolling="no"
+    ></iframe>
   </div>
+
+  <footer>
+    <div class="footer-left">
+      <div class="dot-blue"></div>
+      Fox Sports Premium HD · Transmisión en vivo
+    </div>
+    <button class="fs-btn" onclick="toggleFs()">
+      <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      Pantalla completa
+    </button>
+  </footer>
+
 </div>
 
-<script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
 <script>
-jwplayer.key = "XSuP4qMl+9tK17QNb+4+th2Pm9AWgMO/cYH8CI0HGGr7bdjo";
+  // Hide loading overlay once iframe fires load
+  document.getElementById('stream').addEventListener('load', function(){
+    setTimeout(function(){
+      document.getElementById('loading').classList.add('gone');
+    }, 800);
+  });
 
-var ch = {
-  nombre: "Fox Sports Premium HD",
-  b64: "Rm94X1Nwb3J0c19QcmVtaXVuX0hE",
-  n: 7,
-  k1: "4c230dbc7f6a4bfa6ad0aa73ff792374",
-  k2: "4186a7c2a15f590a9399886feaec4257"
-};
-
-var CDN_HOSTS = ["cdn","chromecast"];
-function rndHost(){ return CDN_HOSTS[Math.floor(Math.random()*CDN_HOSTS.length)]; }
-
-var host = rndHost();
-var canal = atob(ch.b64);
-var url = "https://"+host+".cvattv.com.ar/live/c"+ch.n+"eds/"+canal+"/SA_Live_dash_enc_C/"+canal+".mpd";
-
-jwplayer("player").setup({
-  playlist:[{
-    title: ch.nombre,
-    description: "EN VIVO",
-    sources:[{
-      file: url,
-      type: "dash",
-      drm:{ clearkey:{ keyId: ch.k1, key: ch.k2 } }
-    }]
-  }],
-  autostart: true,
-  mute: false,
-  volume: 100,
-  width: "100%",
-  height: "100%",
-  stretching: "exactfit",
-  preload: "auto",
-  cast: {},
-  sharing: {}
-});
-
-var p = jwplayer("player");
-
-p.on("error", function(){
-  var altHost = host==="cdn" ? "chromecast" : "cdn";
-  var altUrl = "https://"+altHost+".cvattv.com.ar/live/c"+ch.n+"eds/"+canal+"/SA_Live_dash_enc_C/"+canal+".mpd";
-  try{
-    p.load([{sources:[{file:altUrl,type:"dash",drm:{clearkey:{keyId:ch.k1,key:ch.k2}}}]}]);
-    p.play();
-  }catch(e){}
-});
-
-p.on("play", function(){
-  try{ p.setCurrentAudioTrack(1); }catch(e){}
-});
-
-p.on("fullscreen", function(e){
-  if(screen.orientation){
-    if(e.fullscreen){ (async function t(){ try{ await screen.orientation.lock("landscape"); }catch(err){ setTimeout(t,200); } })(); }
-    else{ try{ screen.orientation.unlock(); }catch(err){} }
+  function toggleFs(){
+    var wrap = document.getElementById('player-wrap');
+    if (!document.fullscreenElement) {
+      (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
+    } else {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }
   }
-});
 </script>
 </body>
 </html>
